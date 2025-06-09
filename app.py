@@ -5,6 +5,10 @@ import os
 from datetime import datetime
 import csv
 from io import StringIO
+import faiss
+import numpy as np
+from PyPDF2 import PdfReader
+from openai.embeddings_utils import get_embedding
 
 # Load API Key from environment
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -31,6 +35,37 @@ init_db()
 SYSTEM_PROMPT = """
 You are the SAFAC Treasurer Assistant for the University of Miami. You answer questions based solely on the SAFAC 2025–2026 guidelines, the Budget Adjustment and Substitution Policy, the Documentation Policy, and the Fast Track Process. Be precise, cite policy sections when appropriate, and do not speculate. If the question cannot be answered definitively based on these documents, respond: 'This question is best answered during SAFAC office hours. Please email safac@miami.edu.'"""
 
+# Embedding + FAISS setup
+EMBED_MODEL = "text-embedding-ada-002"
+INDEX = None
+DOCS = []
+
+def load_documents():
+    global DOCS, INDEX
+    files = [
+        ("SAFAC Guidelines", "2025-2026-safac-guidelines.pdf"),
+        ("Documentation Policy", "safac-documentation-policy.pdf"),
+        ("Fast Track Process", "safac-fast-track-process.pdf"),
+        ("Budget Adjustment Policy", "new-budget-adjustment-and-substitution-policy.pdf")
+    ]
+
+    chunks = []
+    for name, file in files:
+        reader = PdfReader(f"./{file}")
+        text = "\n".join(page.extract_text() for page in reader.pages if page.extract_text())
+        paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+        for para in paragraphs:
+            chunks.append((name, para))
+
+    DOCS = chunks
+    texts = [f"{title}\n\n{content}" for title, content in chunks]
+    vectors = [get_embedding(t, engine=EMBED_MODEL) for t in texts]
+
+    dimension = len(vectors[0])
+    index = faiss.IndexFlatL2(dimension)
+    index.add(np.array(vectors).astype("float32"))
+    INDEX = index
+
 @app.route('/')
 def homepage():
     return send_from_directory('.', 'index.html')
@@ -43,12 +78,20 @@ def ask():
     if not question:
         return jsonify({"error": "Missing question"}), 400
 
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": question}
-    ]
-
     try:
+        # Embed question
+        q_embedding = get_embedding(question, engine=EMBED_MODEL)
+        D, I = INDEX.search(np.array([q_embedding]).astype("float32"), k=5)
+
+        # Retrieve top 5 most relevant chunks
+        relevant_contexts = [DOCS[i] for i in I[0]]
+        context_str = "\n\n".join([f"From {src}:\n{txt}" for src, txt in relevant_contexts])
+
+        messages = [
+            {"role": "system", "content": f"{SYSTEM_PROMPT}\n\nUse the following context:\n{context_str}"},
+            {"role": "user", "content": question}
+        ]
+
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=messages,
@@ -94,5 +137,6 @@ def download_logs_csv():
     return Response(output, mimetype='text/csv', headers={"Content-Disposition": "attachment;filename=safac_logs.csv"})
 
 if __name__ == '__main__':
+    load_documents()
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port, debug=True)
