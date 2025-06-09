@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SAFAC Treasurer Assistant</title>
+  <script defer>
+    async function submitQuestion() {
+      const question = document.getElementById("question").value.trim();
+      const responseBox = document.getElementById("response");
+      responseBox.innerText = "Thinking...";
+
+      try {
+        const res = await fetch("/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question })
+        });
+        const data = await res.json();
+        responseBox.innerText = data.answer || data.error || "Unknown error.";
+      } catch (err) {
+        responseBox.innerText = "Error: " + err.message;
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+      max-width: 600px;
+      margin: auto;
+    }
+    textarea {
+      width: 100%;
+      padding: 1em;
+      font-size: 1em;
+    }
+    button {
+      margin-top: 1em;
+      padding: 0.5em 1em;
+      font-size: 1em;
+      cursor: pointer;
+    }
+    #response {
+      margin-top: 1.5em;
+      white-space: pre-wrap;
+      border-top: 1px solid #ccc;
+      padding-top: 1em;
+    }
+  </style>
+</head>
+<body>
+  <h1>SAFAC Treasurer Assistant</h1>
+  <p>Ask a question about SAFAC policies below:</p>
+  <textarea id="question" rows="4" placeholder="Can we buy food for our team social?"></textarea>
+  <button onclick="submitQuestion()">Submit</button>
+  <div id="response"></div>
+</body>
+</html>
