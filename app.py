@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, send_from_directory
 import openai
 import sqlite3
 import os
@@ -32,8 +32,8 @@ SYSTEM_PROMPT = """
 You are the SAFAC Treasurer Assistant for the University of Miami. You answer questions based solely on the SAFAC 2025–2026 guidelines, the Budget Adjustment and Substitution Policy, the Documentation Policy, and the Fast Track Process. Be precise, cite policy sections when appropriate, and do not speculate. If the question cannot be answered definitively based on these documents, respond: 'This question is best answered during SAFAC office hours. Please email safac@miami.edu.'"""
 
 @app.route('/')
-def home():
-    return 'SAFAC Assistant is running!'
+def homepage():
+    return send_from_directory('.', 'index.html')
 
 @app.route('/ask', methods=['POST'])
 def ask():
