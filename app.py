@@ -6,8 +6,12 @@ from datetime import datetime
 import csv
 from io import StringIO
 
+# Load API Key from environment
 openai.api_key = os.getenv("OPENAI_API_KEY")
+
 app = Flask(__name__)
+
+# Initialize SQLite database for logging
 DB_FILE = 'safac_logs.db'
 
 def init_db():
@@ -23,12 +27,19 @@ def init_db():
 
 init_db()
 
-SYSTEM_PROMPT = """You are the SAFAC Treasurer Assistant for the University of Miami. You answer questions based solely on the SAFAC 2025–2026 guidelines, the Budget Adjustment and Substitution Policy, the Documentation Policy, and the Fast Track Process. Be precise, cite policy sections when appropriate, and do not speculate. If the question cannot be answered definitively based on these documents, respond: 'This question is best answered during SAFAC office hours. Please email safac@miami.edu.'"""
+# System prompt for SAFAC Assistant
+SYSTEM_PROMPT = """
+You are the SAFAC Treasurer Assistant for the University of Miami. You answer questions based solely on the SAFAC 2025–2026 guidelines, the Budget Adjustment and Substitution Policy, the Documentation Policy, and the Fast Track Process. Be precise, cite policy sections when appropriate, and do not speculate. If the question cannot be answered definitively based on these documents, respond: 'This question is best answered during SAFAC office hours. Please email safac@miami.edu.'"""
+
+@app.route('/')
+def home():
+    return 'SAFAC Assistant is running!'
 
 @app.route('/ask', methods=['POST'])
 def ask():
     data = request.get_json()
     question = data.get("question")
+
     if not question:
         return jsonify({"error": "Missing question"}), 400
 
@@ -53,6 +64,7 @@ def ask():
         conn.close()
 
         return jsonify({"answer": answer})
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -82,4 +94,5 @@ def download_logs_csv():
     return Response(output, mimetype='text/csv', headers={"Content-Disposition": "attachment;filename=safac_logs.csv"})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port, debug=True)
