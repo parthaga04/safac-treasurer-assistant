@@ -1,2 +1,7 @@
 flask
-openai==0.28
+openai
+PyPDF2
+numpy
+scikit-learn
+requests
+tqdm
