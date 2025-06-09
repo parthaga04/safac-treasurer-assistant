@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 import csv
 from io import StringIO
-import faiss
+from sklearn.neighbors import NearestNeighbors
 import numpy as np
 from PyPDF2 import PdfReader
 from openai.embeddings_utils import get_embedding
@@ -35,13 +35,14 @@ init_db()
 SYSTEM_PROMPT = """
 You are the SAFAC Treasurer Assistant for the University of Miami. You answer questions based solely on the SAFAC 2025–2026 guidelines, the Budget Adjustment and Substitution Policy, the Documentation Policy, and the Fast Track Process. Be precise, cite policy sections when appropriate, and do not speculate. If the question cannot be answered definitively based on these documents, respond: 'This question is best answered during SAFAC office hours. Please email safac@miami.edu.'"""
 
-# Embedding + FAISS setup
+# Embedding + NearestNeighbors setup
 EMBED_MODEL = "text-embedding-ada-002"
 INDEX = None
+INDEX_DOC_VECS = None
 DOCS = []
 
 def load_documents():
-    global DOCS, INDEX
+    global DOCS, INDEX, INDEX_DOC_VECS
     files = [
         ("SAFAC Guidelines", "2025-2026-safac-guidelines.pdf"),
         ("Documentation Policy", "safac-documentation-policy.pdf"),
@@ -61,10 +62,9 @@ def load_documents():
     texts = [f"{title}\n\n{content}" for title, content in chunks]
     vectors = [get_embedding(t, engine=EMBED_MODEL) for t in texts]
 
-    dimension = len(vectors[0])
-    index = faiss.IndexFlatL2(dimension)
-    index.add(np.array(vectors).astype("float32"))
-    INDEX = index
+    INDEX_DOC_VECS = np.array(vectors)
+    INDEX = NearestNeighbors(n_neighbors=5, metric="cosine")
+    INDEX.fit(INDEX_DOC_VECS)
 
 @app.route('/')
 def homepage():
@@ -81,7 +81,7 @@ def ask():
     try:
         # Embed question
         q_embedding = get_embedding(question, engine=EMBED_MODEL)
-        D, I = INDEX.search(np.array([q_embedding]).astype("float32"), k=5)
+        _, I = INDEX.kneighbors(np.array([q_embedding]), n_neighbors=5)
 
         # Retrieve top 5 most relevant chunks
         relevant_contexts = [DOCS[i] for i in I[0]]
