@@ -8,7 +8,6 @@ from io import StringIO
 from sklearn.neighbors import NearestNeighbors
 import numpy as np
 from PyPDF2 import PdfReader
-from openai.embeddings_utils import get_embedding
 
 # Load API Key from environment
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -41,6 +40,11 @@ INDEX = None
 INDEX_DOC_VECS = None
 DOCS = []
 
+
+def get_embedding(text, engine="text-embedding-ada-002"):
+    result = openai.Embedding.create(input=[text], model=engine)
+    return result["data"][0]["embedding"]
+
 def load_documents():
     global DOCS, INDEX, INDEX_DOC_VECS
     files = [
@@ -66,9 +70,99 @@ def load_documents():
     INDEX = NearestNeighbors(n_neighbors=5, metric="cosine")
     INDEX.fit(INDEX_DOC_VECS)
 
+
 @app.route('/')
 def homepage():
-    return send_from_directory('.', 'index.html')
+    return '''
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>SAFAC Treasurer Assistant</title>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+        <style>
+            body {
+                font-family: 'Roboto', sans-serif;
+                background-color: #f3f3f3;
+                color: #212529;
+                margin: 0;
+                padding: 0;
+            }
+            .header {
+                background-color: #005030;
+                color: white;
+                padding: 20px;
+                text-align: center;
+            }
+            .logos {
+                display: flex;
+                justify-content: center;
+                gap: 40px;
+                margin-top: 10px;
+            }
+            .container {
+                padding: 30px;
+                max-width: 800px;
+                margin: auto;
+            }
+            textarea {
+                width: 100%;
+                height: 100px;
+                margin-bottom: 15px;
+                padding: 10px;
+                font-size: 1em;
+                border-radius: 5px;
+                border: 1px solid #ccc;
+            }
+            button {
+                background-color: #f47321;
+                color: white;
+                padding: 10px 20px;
+                border: none;
+                border-radius: 5px;
+                font-size: 1em;
+                cursor: pointer;
+            }
+            .answer {
+                margin-top: 20px;
+                padding: 15px;
+                background-color: white;
+                border-radius: 5px;
+                box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>SAFAC Treasurer Assistant</h1>
+            <div class="logos">
+                <img src="https://upload.wikimedia.org/wikipedia/en/thumb/5/56/Miami_Hurricanes_logo.svg/1200px-Miami_Hurricanes_logo.svg.png" alt="UM Logo" width="100">
+                <img src="https://studentaffairs.miami.edu/_assets/images/safac-logo.png" alt="SAFAC Logo" width="100">
+            </div>
+        </div>
+        <div class="container">
+            <textarea id="question" placeholder="Ask a question about SAFAC policies..."></textarea>
+            <button onclick="askQuestion()">Submit</button>
+            <div class="answer" id="answer"></div>
+        </div>
+
+        <script>
+            async function askQuestion() {
+                const question = document.getElementById("question").value;
+                const response = await fetch("/ask", {
+                    method: "POST",
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question })
+                });
+                const data = await response.json();
+                document.getElementById("answer").innerText = data.answer || data.error;
+            }
+        </script>
+    </body>
+    </html>
+    '''
+
 
 @app.route('/ask', methods=['POST'])
 def ask():
@@ -79,11 +173,8 @@ def ask():
         return jsonify({"error": "Missing question"}), 400
 
     try:
-        # Embed question
         q_embedding = get_embedding(question, engine=EMBED_MODEL)
         _, I = INDEX.kneighbors(np.array([q_embedding]), n_neighbors=5)
-
-        # Retrieve top 5 most relevant chunks
         relevant_contexts = [DOCS[i] for i in I[0]]
         context_str = "\n\n".join([f"From {src}:\n{txt}" for src, txt in relevant_contexts])
 
@@ -111,6 +202,7 @@ def ask():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 @app.route('/logs', methods=['GET'])
 def get_logs():
     conn = sqlite3.connect(DB_FILE)
@@ -119,6 +211,7 @@ def get_logs():
     rows = c.fetchall()
     conn.close()
     return jsonify({"logs": rows})
+
 
 @app.route('/logs.csv', methods=['GET'])
 def download_logs_csv():
@@ -135,6 +228,7 @@ def download_logs_csv():
     output.seek(0)
 
     return Response(output, mimetype='text/csv', headers={"Content-Disposition": "attachment;filename=safac_logs.csv"})
+
 
 if __name__ == '__main__':
     load_documents()
