@@ -136,7 +136,7 @@ def homepage():
         <div class="header">
             <h1>SAFAC Treasurer Assistant</h1>
             <div class="logos">
-                <img src="https://upload.wikimedia.org/wikipedia/en/thumb/5/56/Miami_Hurricanes_logo.svg/1200px-Miami_Hurricanes_logo.svg.png" alt="UM Logo" width="100">
+                <img src="/static/um-logo.png" alt="UM Logo" width="100">
                 <img src="/static/safac-logo.png" alt="SAFAC Logo" width="100">
             </div>
         </div>
