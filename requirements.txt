@@ -1,7 +1,9 @@
 flask
-openai==0.28
+flask-cors
+gunicorn
+openai>=0.28,<1.0
 PyPDF2
 numpy
 scikit-learn
 requests
-tqdm
+python-dotenv
