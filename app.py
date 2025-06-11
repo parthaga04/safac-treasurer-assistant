@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify, Response, send_from_directory
-from flask_cors import CORS
 import openai
 import sqlite3
 import os
@@ -9,179 +8,229 @@ from io import StringIO
 from sklearn.neighbors import NearestNeighbors
 import numpy as np
 from PyPDF2 import PdfReader
-import json
-import traceback
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Configuration
-# ─────────────────────────────────────────────────────────────────────────────
+# Load API Key from environment
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 app = Flask(__name__)
-CORS(app)  # enable CORS for any front-end you build
 
-DB_FILE = "safac_logs.db"
+# Initialize SQLite database for logging
+DB_FILE = 'safac_logs.db'
 
-SYSTEM_PROMPT = (
-    "You are the SAFAC Treasurer Assistant for the University of Miami. "
-    "You answer questions based solely on the SAFAC 2025–2026 guidelines, "
-    "the Budget Adjustment and Substitution Policy, the Documentation Policy, "
-    "the Fast Track Process, and the SAFAC FAQs. Be precise, cite policy sections "
-    "when appropriate, and do not speculate. If the question cannot be answered "
-    "definitively based on these documents, respond: "
-    "'This question is best answered during SAFAC office hours. Please email safac@miami.edu.'"
-)
-
-EMBED_MODEL = "text-embedding-ada-002"
-INDEX = None
-INDEX_DOC_VECS = None
-DOCS = []
-EMBED_CACHE_FILE = "cached_embeddings.npy"
-DOC_CACHE_FILE = "cached_docs.json"
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Database setup
-# ─────────────────────────────────────────────────────────────────────────────
-def init_db() -> None:
+def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute(
-        """
-        CREATE TABLE IF NOT EXISTS logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            question TEXT,
-            answer TEXT,
-            timestamp TEXT
-        )
-        """
-    )
+    c.execute('''CREATE TABLE IF NOT EXISTS logs
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  question TEXT,
+                  answer TEXT,
+                  timestamp TEXT)''')
     conn.commit()
     conn.close()
 
 init_db()
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Embedding helpers
-# ─────────────────────────────────────────────────────────────────────────────
-def get_embedding(text: str, engine: str = EMBED_MODEL) -> list[float]:
-    res = openai.Embedding.create(input=[text], model=engine)
-    return res["data"][0]["embedding"]
+# System prompt for SAFAC Assistant
+SYSTEM_PROMPT = """
+You are the SAFAC Treasurer Assistant for the University of Miami. You answer questions based solely on the SAFAC 2025–2026 guidelines, the Budget Adjustment and Substitution Policy, the Documentation Policy, and the Fast Track Process. Be precise, cite policy sections when appropriate, and do not speculate. If the question cannot be answered definitively based on these documents, respond: 'This question is best answered during SAFAC office hours. Please email safac@miami.edu.'"""
 
-def load_documents() -> None:
-    """Load PDFs, split into paragraphs, embed, and build a NearestNeighbors index."""
-    global DOCS, INDEX_DOC_VECS, INDEX
+# Embedding + NearestNeighbors setup
+EMBED_MODEL = "text-embedding-ada-002"
+INDEX = None
+INDEX_DOC_VECS = None
+DOCS = []
 
-    if os.path.exists(EMBED_CACHE_FILE) and os.path.exists(DOC_CACHE_FILE):
-        INDEX_DOC_VECS = np.load(EMBED_CACHE_FILE, allow_pickle=True)
-        with open(DOC_CACHE_FILE, "r", encoding="utf-8") as f:
-            DOCS = json.load(f)
-    else:
-        files = [
-            ("SAFAC Guidelines", "2025-2026-safac-guidelines.pdf"),
-            ("Documentation Policy", "safac-documentation-policy.pdf"),
-            ("Fast Track Process", "safac-fast-track-process.pdf"),
-            ("Budget Adjustment Policy", "new-budget-adjustment-and-substitution-policy.pdf"),
-            ("FAQs", "FAQs.pdf"),
-        ]
 
-        chunks: list[tuple[str, str]] = []
-        for title, path in files:
-            reader = PdfReader(path)
-            text = "\n".join(
-                page.extract_text() for page in reader.pages if page.extract_text()
-            )
-            paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
-            chunks.extend((title, para) for para in paragraphs)
+def get_embedding(text, engine="text-embedding-ada-002"):
+    result = openai.Embedding.create(input=[text], model=engine)
+    return result["data"][0]["embedding"]
 
-        DOCS = chunks
-        texts = [f"{t}\n\n{c}" for t, c in DOCS]
-        INDEX_DOC_VECS = np.array([get_embedding(t) for t in texts], dtype=np.float32)
+def load_documents():
+    global DOCS, INDEX, INDEX_DOC_VECS
+    files = [
+        ("SAFAC Guidelines", "2025-2026-safac-guidelines.pdf"),
+        ("Documentation Policy", "safac-documentation-policy.pdf"),
+        ("Fast Track Process", "safac-fast-track-process.pdf"),
+        ("Budget Adjustment Policy", "new-budget-adjustment-and-substitution-policy.pdf")
+    ]
 
-        # cache for faster cold-start next time
-        np.save(EMBED_CACHE_FILE, INDEX_DOC_VECS)
-        with open(DOC_CACHE_FILE, "w", encoding="utf-8") as f:
-            json.dump(DOCS, f)
+    chunks = []
+    for name, file in files:
+        reader = PdfReader(f"./{file}")
+        text = "\n".join(page.extract_text() for page in reader.pages if page.extract_text())
+        paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+        for para in paragraphs:
+            chunks.append((name, para))
 
+    DOCS = chunks
+    texts = [f"{title}\n\n{content}" for title, content in chunks]
+    vectors = [get_embedding(t, engine=EMBED_MODEL) for t in texts]
+
+    INDEX_DOC_VECS = np.array(vectors)
     INDEX = NearestNeighbors(n_neighbors=5, metric="cosine")
     INDEX.fit(INDEX_DOC_VECS)
 
-def ask_openai(question: str) -> str:
-    """Retrieve context and ask OpenAI."""
-    q_vec = get_embedding(question)
-    _, idx = INDEX.kneighbors(np.array([q_vec]))
-    context = "\n\n".join(
-        f"From {DOCS[i][0]}:\n{DOCS[i][1]}" for i in idx[0]
-    )
 
-    messages = [
-        {"role": "system", "content": f"{SYSTEM_PROMPT}\n\nUse the following context:\n{context}"},
-        {"role": "user", "content": question},
-    ]
+@app.route('/')
+def homepage():
+    return '''
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>SAFAC Treasurer Assistant</title>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+        <style>
+            body {
+                font-family: 'Roboto', sans-serif;
+                background-color: #f3f3f3;
+                color: #212529;
+                margin: 0;
+                padding: 0;
+            }
+            .header {
+                background-color: #005030;
+                color: white;
+                padding: 20px;
+                text-align: center;
+            }
+            .logos {
+                display: flex;
+                justify-content: center;
+                gap: 40px;
+                margin-top: 10px;
+            }
+            .container {
+                padding: 30px;
+                max-width: 800px;
+                margin: auto;
+            }
+            textarea {
+                width: 100%;
+                height: 100px;
+                margin-bottom: 15px;
+                padding: 10px;
+                font-size: 1em;
+                border-radius: 5px;
+                border: 1px solid #ccc;
+            }
+            button {
+                background-color: #f47321;
+                color: white;
+                padding: 10px 20px;
+                border: none;
+                border-radius: 5px;
+                font-size: 1em;
+                cursor: pointer;
+            }
+            .answer {
+                margin-top: 20px;
+                padding: 15px;
+                background-color: white;
+                border-radius: 5px;
+                box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>SAFAC Treasurer Assistant</h1>
+            <div class="logos">
+                <img src="https://upload.wikimedia.org/wikipedia/en/thumb/5/56/Miami_Hurricanes_logo.svg/1200px-Miami_Hurricanes_logo.svg.png" alt="UM Logo" width="100">
+                <img src="https://studentaffairs.miami.edu/_assets/images/safac-logo.png" alt="SAFAC Logo" width="100">
+            </div>
+        </div>
+        <div class="container">
+            <textarea id="question" placeholder="Ask a question about SAFAC policies..."></textarea>
+            <button onclick="askQuestion()">Submit</button>
+            <div class="answer" id="answer"></div>
+        </div>
 
-    res = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=messages,
-        temperature=0.3,
-    )
-    return res["choices"][0]["message"]["content"]
+        <script>
+            async function askQuestion() {
+                const question = document.getElementById("question").value;
+                const response = await fetch("/ask", {
+                    method: "POST",
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question })
+                });
+                const data = await response.json();
+                document.getElementById("answer").innerText = data.answer || data.error;
+            }
+        </script>
+    </body>
+    </html>
+    '''
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Routes
-# ─────────────────────────────────────────────────────────────────────────────
-@app.route("/ask", methods=["POST"])
+
+@app.route('/ask', methods=['POST'])
 def ask():
-    data = request.get_json(force=True)
+    data = request.get_json()
     question = data.get("question")
+
     if not question:
         return jsonify({"error": "Missing question"}), 400
 
     try:
-        answer = ask_openai(question)
+        q_embedding = get_embedding(question, engine=EMBED_MODEL)
+        _, I = INDEX.kneighbors(np.array([q_embedding]), n_neighbors=5)
+        relevant_contexts = [DOCS[i] for i in I[0]]
+        context_str = "\n\n".join([f"From {src}:\n{txt}" for src, txt in relevant_contexts])
 
-        with sqlite3.connect(DB_FILE) as conn:
-            conn.execute(
-                "INSERT INTO logs (question, answer, timestamp) VALUES (?, ?, ?)",
-                (question, answer, datetime.utcnow().isoformat())
-            )
-            conn.commit()
+        messages = [
+            {"role": "system", "content": f"{SYSTEM_PROMPT}\n\nUse the following context:\n{context_str}"},
+            {"role": "user", "content": question}
+        ]
+
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=messages,
+            temperature=0.3
+        )
+        answer = response["choices"][0]["message"]["content"]
+
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+        c.execute("INSERT INTO logs (question, answer, timestamp) VALUES (?, ?, ?)",
+                  (question, answer, datetime.now().isoformat()))
+        conn.commit()
+        conn.close()
 
         return jsonify({"answer": answer})
-    except Exception as exc:
-        traceback.print_exc()
-        return jsonify({"error": str(exc)}), 500
 
-@app.route("/logs", methods=["GET"])
-def logs_json():
-    with sqlite3.connect(DB_FILE) as conn:
-        rows = conn.execute(
-            "SELECT id, question, answer, timestamp FROM logs ORDER BY timestamp DESC"
-        ).fetchall()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/logs', methods=['GET'])
+def get_logs():
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT id, question, answer, timestamp FROM logs ORDER BY timestamp DESC")
+    rows = c.fetchall()
+    conn.close()
     return jsonify({"logs": rows})
 
-@app.route("/logs.csv", methods=["GET"])
-def logs_csv():
-    with sqlite3.connect(DB_FILE) as conn:
-        rows = conn.execute(
-            "SELECT id, question, answer, timestamp FROM logs ORDER BY timestamp DESC"
-        ).fetchall()
 
-    buf = StringIO()
-    writer = csv.writer(buf)
-    writer.writerow(["ID", "Question", "Answer", "Timestamp"])
+@app.route('/logs.csv', methods=['GET'])
+def download_logs_csv():
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT id, question, answer, timestamp FROM logs ORDER BY timestamp DESC")
+    rows = c.fetchall()
+    conn.close()
+
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['ID', 'Question', 'Answer', 'Timestamp'])
     writer.writerows(rows)
-    buf.seek(0)
-    return Response(
-        buf.getvalue(),
-        mimetype="text/csv",
-        headers={"Content-Disposition": "attachment;filename=safac_logs.csv"},
-    )
+    output.seek(0)
 
-# serve static assets such as a local SAFAC logo
-@app.route("/static/<path:filename>")
-def static_files(filename):
-    return send_from_directory("static", filename)
+    return Response(output, mimetype='text/csv', headers={"Content-Disposition": "attachment;filename=safac_logs.csv"})
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     load_documents()
-    port = int(os.getenv("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port, debug=True)
