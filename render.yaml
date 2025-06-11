@@ -5,6 +5,6 @@ services:
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: python app.py
-    envVars:
+    envVars: gunicorn app:app
       - key: OPENAI_API_KEY
         sync: false
