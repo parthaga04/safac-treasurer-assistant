@@ -48,10 +48,11 @@ def get_embedding(text, engine="text-embedding-ada-002"):
 def load_documents():
     global DOCS, INDEX, INDEX_DOC_VECS
     files = [
-        ("SAFAC Guidelines", "2025-2026-safac-guidelines.pdf"),
-        ("Documentation Policy", "safac-documentation-policy.pdf"),
-        ("Fast Track Process", "safac-fast-track-process.pdf"),
-        ("Budget Adjustment Policy", "new-budget-adjustment-and-substitution-policy.pdf")
+    ("SAFAC Guidelines", "2025-2026-safac-guidelines.pdf"),
+    ("Documentation Policy", "safac-documentation-policy.pdf"),
+    ("Fast Track Process", "safac-fast-track-process.pdf"),
+    ("Budget Adjustment Policy", "new-budget-adjustment-and-substitution-policy.pdf"),
+    ("FAQs", "FAQs.pdf")
     ]
 
     chunks = []
