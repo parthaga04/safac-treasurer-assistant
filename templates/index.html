@@ -74,13 +74,13 @@
     }
 
     .chat-message.user {
-  align-self: flex-end;
+      align-self: flex-end;
     }
 
     .chat-message.assistant {
-  align-self: flex-start;
+      align-self: flex-start;
     }
-    
+
     .bubble {
       padding: 12px 16px;
       border-radius: 15px;
@@ -90,13 +90,13 @@
     }
 
     .assistant .bubble {
-  background-color: #fff1e6;
-  border-bottom-right-radius: 0;
+      background-color: #fff1e6;
+      border-bottom-right-radius: 0;
     }
 
     .user .bubble {
-  background-color: #e1f4ed;
-  border-bottom-left-radius: 0;
+      background-color: #e1f4ed;
+      border-bottom-left-radius: 0;
     }
 
     .timestamp {
@@ -140,6 +140,7 @@
       cursor: pointer;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
+
     .disclaimer {
       font-size: 0.85em;
       color: #6c757d;
@@ -154,7 +155,7 @@
     .disclaimer a {
       color: #005030;
       text-decoration: underline;
-    }    
+    }
 
     .intro-message {
       background-color: #e6f2ec;
@@ -175,11 +176,12 @@
 
     .intro-message button {
       background: none;
-      border: none;
+      border: 2px solid #005030;
       color: #005030;
-      cursor: pointer;
+      padding: 6px 16px;
+      border-radius: 25px;
       font-weight: bold;
-      margin-top: 5px;
+      cursor: pointer;
     }
 
     .intro-message.collapsed {
@@ -196,44 +198,40 @@
       font-weight: bold;
       cursor: pointer;
       margin: 10px auto;
-      display: block;
+      display: none;
     }
-    
-    #collapseBtn {
-      display: inline-block;
-    }
-    
   </style>
 </head>
 <body>
-<div class="header">
-  <img src="{{ url_for('static', filename='um_logo.png') }}" alt="UM Logo" class="logo">
-  <div class="main-title">SAFAC Treasurer Assistant</div>
-  <img src="{{ url_for('static', filename='safac_logo.png') }}" alt="SAFAC Logo" class="logo">
-</div>
 
-<button id="expandBtn" onclick="toggleIntro()">Show Info</button>
+  <div class="header">
+    <img src="{{ url_for('static', filename='um_logo.png') }}" alt="UM Logo" class="logo">
+    <div class="main-title">SAFAC Treasurer Assistant</div>
+    <img src="{{ url_for('static', filename='safac_logo.png') }}" alt="SAFAC Logo" class="logo">
+  </div>
 
-<div class="intro-message expanded" id="introMessage">
-  <p><strong>Hi, I’m your new SAFAC Assistant.</strong></p>
-  <p>
-    I’m here to help answer your questions about SAFAC’s structure, funding policies, and assist you as you build your budget.
-    I was designed as a tool to guide you through our guidelines and reduce confusion around the budget submission process.
-  </p>
-  <p>
-    I can answer general questions and provide information based on SAFAC’s policy documents and practices.
-    However, please note that I cannot guarantee whether specific items will be funded, and I may not be able to answer questions
-    unique to your organization as those decisions ultimately rest with the SAFAC committee.
-  </p>
-  <p><strong>Try me out by typing your first question below!</strong></p>
-  <button id="collapseBtn" onclick="toggleIntro()">Hide</button>
-</div>
+  <button id="expandBtn">Show Info</button>
+
+  <div class="intro-message" id="introMessage">
+    <p><strong>Hi, I’m your new SAFAC Assistant.</strong></p>
+    <p>
+      I’m here to help answer your questions about SAFAC’s structure, funding policies, and assist you as you build your budget.
+      I was designed as a tool to guide you through our guidelines and reduce confusion around the budget submission process.
+    </p>
+    <p>
+      I can answer general questions and provide information based on SAFAC’s policy documents and practices.
+      However, please note that I cannot guarantee whether specific items will be funded, and I may not be able to answer questions
+      unique to your organization as those decisions ultimately rest with the SAFAC committee.
+    </p>
+    <p><strong>Try me out by typing your first question below!</strong></p>
+    <button id="collapseBtn">Hide</button>
+  </div>
 
   <div class="main">
     <div id="chat-container"></div>
     <div class="input-area">
-      <textarea id="question" placeholder="Ask a question about SAFAC policies..." onkeydown="handleKey(event)"></textarea>
-      <button onclick="askQuestion()">Submit</button>
+      <textarea id="question" placeholder="Ask a question about SAFAC policies..."></textarea>
+      <button id="submitBtn">Submit</button>
     </div>
     <div class="disclaimer">
       The SAFAC Treasurer Assistant is not always accurate. Please reach out to <a href="mailto:safac@miami.edu">safac@miami.edu</a> with any concerns.
@@ -241,89 +239,98 @@
   </div>
 
   <script>
-    function formatTimestamp() {
-      return new Date().toLocaleString(undefined, {
-        dateStyle: "short",
-        timeStyle: "short"
-      });
-    }
-
-    function handleKey(event) {
-      if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        askQuestion();
-      }
-    }
-
-    async function askQuestion() {
-      const textarea = document.getElementById("question");
-      const container = document.getElementById("chat-container");
-      
-      const existingSpacer = document.getElementById("spacer");
-      if (existingSpacer) container.removeChild(existingSpacer);
-      
-      if (container.children.length < 8) {
-       const spacer = document.createElement("div");
-      spacer.id = "spacer";
-      spacer.style.marginTop = "auto";
-      container.prepend(spacer);
-      }
-      
-      const question = textarea.value.trim();
-      if (!question) return;
-      textarea.value = "";
-      
-      const timestamp = formatTimestamp();
-
-      const userMsg = document.createElement("div");
-      userMsg.classList.add("chat-message", "user");
-      userMsg.innerHTML = `
-        <div class="bubble">${question}</div>
-        <div class="timestamp">${timestamp}</div>
-      `;
-      container.appendChild(userMsg);
-
-      const assistantMsg = document.createElement("div");
-      assistantMsg.classList.add("chat-message", "assistant");
-      const responseId = "answer-" + Date.now();
-      assistantMsg.innerHTML = `
-        <div class="bubble" id="${responseId}">Responding...</div>
-        <div class="timestamp">${timestamp}</div>
-      `;
-      container.appendChild(assistantMsg);
-      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-
-      try {
-        const res = await fetch("/ask", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question })
-        });
-        const data = await res.json();
-        document.getElementById(responseId).innerText = data.answer || "No response.";
-        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-      } catch (error) {
-        document.getElementById(responseId).innerText = "Error retrieving response.";
-      }
-    }
-    
-    function toggleIntro() {
-      const intro = document.getElementById("introMessage");
-      const collapseBtn = document.getElementById("collapseBtn");
+    window.onload = () => {
+      const questionBox = document.getElementById("question");
+      const submitBtn = document.getElementById("submitBtn");
       const expandBtn = document.getElementById("expandBtn");
+      const collapseBtn = document.getElementById("collapseBtn");
 
-      const isCollapsed = intro.classList.contains("collapsed");
+      questionBox.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          askQuestion();
+        }
+      });
 
-      if (isCollapsed) {
-      intro.classList.remove("collapsed");
-      expandBtn.style.display = "none";
-      collapseBtn.style.display = "inline-block"; // show it
-    } else {
-      intro.classList.add("collapsed");
-      expandBtn.style.display = "inline-block";
-      collapseBtn.style.display = "none"; // hide it
-    }
+      submitBtn.addEventListener("click", askQuestion);
+      expandBtn.addEventListener("click", toggleIntro);
+      collapseBtn.addEventListener("click", toggleIntro);
 
+      function formatTimestamp() {
+        return new Date().toLocaleString(undefined, {
+          dateStyle: "short",
+          timeStyle: "short"
+        });
+      }
+
+      async function askQuestion() {
+        const textarea = document.getElementById("question");
+        const container = document.getElementById("chat-container");
+
+        const existingSpacer = document.getElementById("spacer");
+        if (existingSpacer) container.removeChild(existingSpacer);
+
+        if (container.children.length < 8) {
+          const spacer = document.createElement("div");
+          spacer.id = "spacer";
+          spacer.style.marginTop = "auto";
+          container.prepend(spacer);
+        }
+
+        const question = textarea.value.trim();
+        if (!question) return;
+        textarea.value = "";
+
+        const timestamp = formatTimestamp();
+
+        const userMsg = document.createElement("div");
+        userMsg.classList.add("chat-message", "user");
+        userMsg.innerHTML = `
+          <div class="bubble">${question}</div>
+          <div class="timestamp">${timestamp}</div>
+        `;
+        container.appendChild(userMsg);
+
+        const assistantMsg = document.createElement("div");
+        assistantMsg.classList.add("chat-message", "assistant");
+        const responseId = "answer-" + Date.now();
+        assistantMsg.innerHTML = `
+          <div class="bubble" id="${responseId}">Responding...</div>
+          <div class="timestamp">${timestamp}</div>
+        `;
+        container.appendChild(assistantMsg);
+        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+
+        try {
+          const res = await fetch("/ask", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question })
+          });
+          const data = await res.json();
+          document.getElementById(responseId).innerText = data.answer || "No response.";
+          container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+        } catch (error) {
+          document.getElementById(responseId).innerText = "Error retrieving response.";
+        }
+      }
+
+      function toggleIntro() {
+        const intro = document.getElementById("introMessage");
+        const isCollapsed = intro.classList.contains("collapsed");
+
+        if (isCollapsed) {
+          intro.classList.remove("collapsed");
+          expandBtn.style.display = "none";
+          collapseBtn.style.display = "inline-block";
+        } else {
+          intro.classList.add("collapsed");
+          expandBtn.style.display = "inline-block";
+          collapseBtn.style.display = "none";
+        }
+      }
+    };
   </script>
+
 </body>
 </html>
