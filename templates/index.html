@@ -9,79 +9,116 @@
     body {
       font-family: 'Roboto', sans-serif;
       background-color: #f3f3f3;
-      color: #212529;
       margin: 0;
       padding: 0;
     }
+
     .header {
       background-color: #005030;
       color: white;
       padding: 20px;
       text-align: center;
     }
+
     .logos {
       display: flex;
       justify-content: center;
       gap: 40px;
       margin-top: 10px;
     }
+
     .logos img {
       height: 80px;
       object-fit: contain;
     }
+
     .container {
-      padding: 30px;
       max-width: 800px;
-      margin: auto;
+      margin: 30px auto;
+      padding: 0 20px;
     }
+
     textarea {
       width: 100%;
       height: 100px;
-      margin-bottom: 15px;
       padding: 10px;
-      font-size: 1em;
+      font-size: 1rem;
       border-radius: 5px;
       border: 1px solid #ccc;
+      resize: vertical;
     }
+
     button {
       background-color: #f47321;
       color: white;
       padding: 10px 20px;
       border: none;
       border-radius: 5px;
-      font-size: 1em;
+      font-size: 1rem;
+      margin-top: 10px;
       cursor: pointer;
     }
+
     .chat-history {
       margin-top: 30px;
-      max-height: 400px;
+      max-height: 500px;
       overflow-y: auto;
-      background-color: #ffffff;
-      border-radius: 5px;
-      padding: 15px;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
       box-shadow: 0 0 10px rgba(0,0,0,0.05);
     }
-    .chat-bubble {
+
+    .chat-message {
       margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
     }
-    .chat-bubble .question {
-      font-weight: bold;
-      margin-bottom: 5px;
+
+    .chat-message.assistant {
+      align-items: flex-end;
     }
-    .chat-bubble .answer {
-      margin-left: 10px;
+
+    .bubble {
+      padding: 12px 16px;
+      border-radius: 15px;
+      max-width: 80%;
       white-space: pre-wrap;
+      font-size: 0.95rem;
+      line-height: 1.4;
     }
+
+    .user .bubble {
+      background-color: #e1f4ed;
+      color: #212529;
+      border-bottom-left-radius: 0;
+    }
+
+    .assistant .bubble {
+      background-color: #fff1e6;
+      color: #212529;
+      border-bottom-right-radius: 0;
+    }
+
+    .timestamp {
+      font-size: 0.8em;
+      color: #777;
+      margin-top: 4px;
+    }
+
     .spinner {
       border: 4px solid #f3f3f3;
       border-top: 4px solid #f47321;
       border-radius: 50%;
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
       animation: spin 1s linear infinite;
       display: inline-block;
+      margin-right: 6px;
       vertical-align: middle;
     }
+
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
@@ -100,49 +137,62 @@
   <div class="container">
     <textarea id="question" placeholder="Ask a question about SAFAC policies..."></textarea>
     <button onclick="askQuestion()">Submit</button>
+
     <div id="chat-history" class="chat-history"></div>
   </div>
 
   <script>
-  function formatTimestamp() {
-    const now = new Date();
-    return now.toLocaleString(undefined, {
-      dateStyle: "short",
-      timeStyle: "short"
-    });
-  }
+    function formatTimestamp() {
+      return new Date().toLocaleString(undefined, {
+        dateStyle: "short",
+        timeStyle: "short"
+      });
+    }
 
-  async function askQuestion() {
-    const question = document.getElementById("question").value;
-    const chatHistory = document.getElementById("chat-history");
-    if (!question.trim()) return;
+    async function askQuestion() {
+      const question = document.getElementById("question").value.trim();
+      if (!question) return;
+      document.getElementById("question").value = "";
 
-    const timestamp = formatTimestamp();
+      const chatHistory = document.getElementById("chat-history");
+      const timestamp = formatTimestamp();
+      const id = "answer-" + Date.now();
 
-    const waitingBubble = document.createElement("div");
-    waitingBubble.classList.add("chat-bubble");
-    waitingBubble.innerHTML = `
-      <div class="question">${question} <div style="font-size: 0.8em; color: #888;">${timestamp}</div></div>
-      <div class="answer" id="latest-answer">
-        <span class="spinner"></span> Responding…
-      </div>
-    `;
-    chatHistory.appendChild(waitingBubble);
-    chatHistory.scrollTop = chatHistory.scrollHeight;
+      // User bubble
+      const userMsg = document.createElement("div");
+      userMsg.classList.add("chat-message", "user");
+      userMsg.innerHTML = `
+        <div class="bubble">${question}</div>
+        <div class="timestamp">${timestamp}</div>
+      `;
+      chatHistory.appendChild(userMsg);
+      chatHistory.scrollTo({ top: chatHistory.scrollHeight, behavior: 'smooth' });
 
-    const response = await fetch("/ask", {
-      method: "POST",
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question })
-    });
+      // Assistant bubble placeholder
+      const assistantMsg = document.createElement("div");
+      assistantMsg.classList.add("chat-message", "assistant");
+      assistantMsg.innerHTML = `
+        <div class="bubble" id="${id}">
+          <span class="spinner"></span> Responding…
+        </div>
+        <div class="timestamp">${timestamp}</div>
+      `;
+      chatHistory.appendChild(assistantMsg);
+      chatHistory.scrollTo({ top: chatHistory.scrollHeight, behavior: 'smooth' });
 
-    const data = await response.json();
-    const answerEl = document.getElementById("latest-answer");
-    answerEl.innerHTML = `${data.answer || data.error || "No response."}<div style="font-size: 0.8em; color: #888;">${formatTimestamp()}</div>`;
-
-    document.getElementById("question").value = "";
-  }
-</script>
-
+      // Get answer
+      try {
+        const res = await fetch("/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question })
+        });
+        const data = await res.json();
+        document.getElementById(id).innerHTML = data.answer || "No response.";
+      } catch (err) {
+        document.getElementById(id).innerText = "Error: " + err.message;
+      }
+    }
+  </script>
 </body>
 </html>
