@@ -20,29 +20,37 @@
     .header {
       background-color: #005030;
       color: white;
-      padding: 20px;
+      padding: 10px 30px;
       text-align: center;
       width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
 
     .logos {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      margin-top: 10px;
-      padding: 0 100px;
+      gap: 20px;
     }
 
     .logos img {
-      height: 80px;
+      height: 60px;
       width: auto;
+    }
+
+    .main-title {
+      flex-grow: 1;
+      text-align: center;
+      font-size: 1.5em;
+      font-weight: bold;
     }
 
     .main {
       display: flex;
       flex-direction: column;
       width: 100%;
-      max-width: 800px;
+      max-width: 900px;
       flex: 1;
       padding: 0 20px;
     }
@@ -50,7 +58,7 @@
     #chat-container {
       flex: 1;
       padding: 20px 0;
-      overflow-y: scroll;
+      overflow-y: auto;
       display: flex;
       flex-direction: column;
     }
@@ -62,7 +70,7 @@
       align-items: flex-start;
     }
 
-    .chat-message.user {
+    .chat-message.assistant {
       align-items: flex-end;
     }
 
@@ -73,18 +81,17 @@
       white-space: pre-wrap;
       font-size: 0.95rem;
       line-height: 1.4;
-      border: none;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      background-color: inherit;
     }
 
     .assistant .bubble {
-      background-color: #e1f4ed;
+      background-color: #fff1e6;
       color: #212529;
       border-bottom-left-radius: 0;
     }
 
     .user .bubble {
-      background-color: #fff1e6;
+      background-color: #e1f4ed;
       color: #212529;
       border-bottom-right-radius: 0;
     }
@@ -98,10 +105,12 @@
     .input-area {
       display: flex;
       justify-content: center;
-      padding: 10px 0;
+      padding: 10px;
       background: #fff;
       border-top: 1px solid #ccc;
       align-items: center;
+      width: 100%;
+      max-width: 900px;
     }
 
     textarea {
@@ -128,11 +137,9 @@
 </head>
 <body>
   <div class="header">
-    <h1>SAFAC Treasurer Assistant</h1>
-    <div class="logos">
-      <img src="{{ url_for('static', filename='um_logo.png') }}" alt="UM Logo">
-      <img src="{{ url_for('static', filename='safac_logo.png') }}" alt="SAFAC Logo">
-    </div>
+    <img src="{{ url_for('static', filename='um_logo.png') }}" alt="UM Logo">
+    <div class="main-title">SAFAC Treasurer Assistant</div>
+    <img src="{{ url_for('static', filename='safac_logo.png') }}" alt="SAFAC Logo">
   </div>
 
   <div class="main">
