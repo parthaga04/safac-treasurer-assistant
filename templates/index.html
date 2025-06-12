@@ -1,165 +1,183 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SAFAC Treasurer Assistant</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Roboto', sans-serif;
-            background-color: #f3f3f3;
-            color: #212529;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
-        .header {
-            background-color: #005030;
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
-        .logos {
-            display: flex;
-            justify-content: center;
-            gap: 40px;
-            margin-top: 10px;
-        }
-        .container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            padding: 20px;
-            max-width: 800px;
-            margin: 0 auto;
-            overflow-y: auto;
-        }
-        .chat-message {
-            margin-bottom: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-        }
-        .chat-message.assistant {
-            align-items: flex-start;
-        }
-        .bubble {
-            padding: 12px 16px;
-            border-radius: 15px;
-            max-width: 80%;
-            white-space: pre-wrap;
-            font-size: 0.95rem;
-            line-height: 1.4;
-        }
-        .user .bubble {
-            background-color: #fff1e6;
-            color: #212529;
-            border-bottom-right-radius: 0;
-        }
-        .assistant .bubble {
-            background-color: #e1f4ed;
-            color: #212529;
-            border-bottom-left-radius: 0;
-        }
-        .timestamp {
-            font-size: 0.8em;
-            color: #777;
-            margin-top: 4px;
-        }
-        .input-area {
-            padding: 15px;
-            background: #fff;
-            border-top: 1px solid #ccc;
-            display: flex;
-            gap: 10px;
-        }
-        textarea {
-            flex: 1;
-            height: 50px;
-            padding: 10px;
-            font-size: 1em;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-            resize: none;
-        }
-        button {
-            background-color: #f47321;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            font-size: 1em;
-            cursor: pointer;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SAFAC Treasurer Assistant</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #f3f3f3;
+      color: #212529;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    .header {
+      background-color: #005030;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .logos {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      margin-top: 10px;
+    }
+
+    #chat-container {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chat-message {
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .chat-message.user {
+      align-items: flex-end;
+    }
+
+    .bubble {
+      padding: 12px 16px;
+      border-radius: 15px;
+      max-width: 80%;
+      white-space: pre-wrap;
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+
+    .assistant .bubble {
+      background-color: #e1f4ed;
+      color: #212529;
+      border-bottom-left-radius: 0;
+    }
+
+    .user .bubble {
+      background-color: #fff1e6;
+      color: #212529;
+      border-bottom-right-radius: 0;
+    }
+
+    .timestamp {
+      font-size: 0.8em;
+      color: #777;
+      margin-top: 4px;
+    }
+
+    .input-area {
+      display: flex;
+      padding: 10px 20px;
+      background: #fff;
+      border-top: 1px solid #ccc;
+      align-items: center;
+    }
+
+    textarea {
+      flex: 1;
+      height: 50px;
+      padding: 10px;
+      font-size: 1em;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      resize: none;
+    }
+
+    button {
+      background-color: #f47321;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      font-size: 1em;
+      margin-left: 10px;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
-    <div class="header">
-        <h1>SAFAC Treasurer Assistant</h1>
-        <div class="logos">
-            <img src="{{ url_for('static', filename='um_logo.png') }}" alt="UM Logo" width="100">
-            <img src="{{ url_for('static', filename='safac_logo.png') }}" alt="SAFAC Logo" width="100">
-        </div>
+  <div class="header">
+    <h1>SAFAC Treasurer Assistant</h1>
+    <div class="logos">
+      <img src="{{ url_for('static', filename='um_logo.png') }}" alt="UM Logo" width="100">
+      <img src="{{ url_for('static', filename='safac_logo.png') }}" alt="SAFAC Logo" width="100">
     </div>
-    <div class="container" id="chat-container">
-        <!-- Chat history will be appended here -->
-    </div>
-    <div class="input-area">
-        <textarea id="question" placeholder="Ask a question about SAFAC policies..."></textarea>
-        <button onclick="askQuestion()">Submit</button>
-    </div>
+  </div>
 
-    <script>
-        function formatTimestamp() {
-            return new Date().toLocaleString(undefined, {
-                dateStyle: "short",
-                timeStyle: "short"
-            });
-        }
+  <div id="chat-container"></div>
 
-        async function askQuestion() {
-            const question = document.getElementById("question").value.trim();
-            if (!question) return;
-            document.getElementById("question").value = "";
+  <div class="input-area">
+    <textarea id="question" placeholder="Ask a question about SAFAC policies..." onkeydown="handleKey(event)"></textarea>
+    <button onclick="askQuestion()">Submit</button>
+  </div>
 
-            const container = document.getElementById("chat-container");
-            const timestamp = formatTimestamp();
+  <script>
+    function formatTimestamp() {
+      return new Date().toLocaleString(undefined, {
+        dateStyle: "short",
+        timeStyle: "short"
+      });
+    }
 
-            const userMsg = document.createElement("div");
-            userMsg.classList.add("chat-message", "user");
-            userMsg.innerHTML = `
-                <div class="bubble">${question}</div>
-                <div class="timestamp">${timestamp}</div>
-            `;
-            container.appendChild(userMsg);
-            container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    function handleKey(event) {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        askQuestion();
+      }
+    }
 
-            const assistantMsg = document.createElement("div");
-            assistantMsg.classList.add("chat-message", "assistant");
-            const responseId = "answer-" + Date.now();
-            assistantMsg.innerHTML = `
-                <div class="bubble" id="${responseId}">Responding...</div>
-                <div class="timestamp">${timestamp}</div>
-            `;
-            container.appendChild(assistantMsg);
-            container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    async function askQuestion() {
+      const textarea = document.getElementById("question");
+      const question = textarea.value.trim();
+      if (!question) return;
+      textarea.value = "";
 
-            try {
-                const response = await fetch("/ask", {
-                    method: "POST",
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ question })
-                });
-                const data = await response.json();
-                document.getElementById(responseId).innerText = data.answer || data.error;
-            } catch (error) {
-                document.getElementById(responseId).innerText = "Error retrieving response.";
-            }
-        }
-    </script>
+      const container = document.getElementById("chat-container");
+      const timestamp = formatTimestamp();
+
+      const userMsg = document.createElement("div");
+      userMsg.classList.add("chat-message", "user");
+      userMsg.innerHTML = `
+        <div class="bubble">${question}</div>
+        <div class="timestamp">${timestamp}</div>
+      `;
+      container.appendChild(userMsg);
+
+      const assistantMsg = document.createElement("div");
+      assistantMsg.classList.add("chat-message", "assistant");
+      const responseId = "answer-" + Date.now();
+      assistantMsg.innerHTML = `
+        <div class="bubble" id="${responseId}">Responding...</div>
+        <div class="timestamp">${timestamp}</div>
+      `;
+      container.appendChild(assistantMsg);
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+
+      try {
+        const res = await fetch("/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question })
+        });
+        const data = await res.json();
+        document.getElementById(responseId).innerText = data.answer || "No response.";
+        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+      } catch (error) {
+        document.getElementById(responseId).innerText = "Error retrieving response.";
+      }
+    }
+  </script>
 </body>
 </html>
+
