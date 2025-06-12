@@ -27,9 +27,15 @@
 
     .logos {
       display: flex;
-      justify-content: center;
-      gap: 40px;
+      justify-content: space-between;
+      align-items: center;
       margin-top: 10px;
+      padding: 0 100px;
+    }
+
+    .logos img {
+      height: 80px;
+      width: auto;
     }
 
     .main {
@@ -67,6 +73,8 @@
       white-space: pre-wrap;
       font-size: 0.95rem;
       line-height: 1.4;
+      border: none;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
     .assistant .bubble {
@@ -89,6 +97,7 @@
 
     .input-area {
       display: flex;
+      justify-content: center;
       padding: 10px 0;
       background: #fff;
       border-top: 1px solid #ccc;
@@ -121,8 +130,8 @@
   <div class="header">
     <h1>SAFAC Treasurer Assistant</h1>
     <div class="logos">
-      <img src="{{ url_for('static', filename='um_logo.png') }}" alt="UM Logo" width="100">
-      <img src="{{ url_for('static', filename='safac_logo.png') }}" alt="SAFAC Logo" width="100">
+      <img src="{{ url_for('static', filename='um_logo.png') }}" alt="UM Logo">
+      <img src="{{ url_for('static', filename='safac_logo.png') }}" alt="SAFAC Logo">
     </div>
   </div>
 
