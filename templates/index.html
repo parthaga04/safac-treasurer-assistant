@@ -59,10 +59,11 @@
     #chat-container {
       flex: 1;
       overflow-y: auto;
-      min-height: 0; 
+      min-height: 0;
       display: flex;
       flex-direction: column;
       width: 100%;
+      padding-top: 60px;
     }
 
     .chat-message {
@@ -173,6 +174,14 @@
 
     async function askQuestion() {
       const textarea = document.getElementById("question");
+      const existingSpacer = document.getElementById("spacer");
+      if (existingSpacer) container.removeChild(existingSpacer);
+      if (container.children.length < 8) {
+       const spacer = document.createElement("div");
+      spacer.id = "spacer";
+      spacer.style.marginTop = "auto";
+      container.prepend(spacer);
+      }
       const question = textarea.value.trim();
       if (!question) return;
       textarea.value = "";
