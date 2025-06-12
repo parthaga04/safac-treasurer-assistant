@@ -155,14 +155,79 @@
       color: #005030;
       text-decoration: underline;
     }    
+
+    .intro-message {
+      background-color: #e6f2ec;
+      padding: 20px 30px;
+      width: 100%;
+      max-width: 900px;
+      margin: 0 auto;
+      transition: max-height 0.3s ease, opacity 0.3s ease;
+      overflow: hidden;
+      border-bottom: 1px solid #ccc;
+      font-size: 0.95em;
+      line-height: 1.5;
+    }
+
+    .intro-message p {
+      margin: 0 0 12px 0;
+    }
+
+    .intro-message button {
+      background: none;
+      border: none;
+      color: #005030;
+      cursor: pointer;
+      font-weight: bold;
+      margin-top: 5px;
+    }
+
+    .intro-message.collapsed {
+      max-height: 0;
+      opacity: 0;
+      padding: 0 30px;
+      border: none;
+    }
+
+    #expandBtn {
+      background: none;
+      border: none;
+      color: #005030;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 10px auto;
+      display: block;
+    }
+    
+    #collapseBtn {
+      display: inline-block;
+    }
+    
   </style>
 </head>
 <body>
-  <div class="header">
-    <img src="{{ url_for('static', filename='um_logo.png') }}" alt="UM Logo" class="logo">
-    <div class="main-title">SAFAC Treasurer Assistant</div>
-    <img src="{{ url_for('static', filename='safac_logo.png') }}" alt="SAFAC Logo" class="logo">
-  </div>
+<div class="header">
+  <img src="{{ url_for('static', filename='um_logo.png') }}" alt="UM Logo" class="logo">
+  <div class="main-title">SAFAC Treasurer Assistant</div>
+  <img src="{{ url_for('static', filename='safac_logo.png') }}" alt="SAFAC Logo" class="logo">
+</div>
+
+<button id="expandBtn" onclick="toggleIntro()">Show Info</button>
+
+<div class="intro-message expanded" id="introMessage">
+  <p><strong>Hi, I’m your new SAFAC Assistant.</strong></p>
+  <p>
+    I’m here to help answer your questions about SAFAC’s structure, funding policies, and assist you as you build your budget.
+    I was designed as a tool to guide you through our guidelines and reduce confusion around the budget submission process.
+  </p>
+  <p>
+    I can answer general questions and provide information based on SAFAC’s policy documents and practices.
+    However, please note that I cannot guarantee whether specific items will be funded, and I may not be able to answer questions
+    unique to your organization as those decisions ultimately rest with the SAFAC committee.
+  </p>
+  <p><strong>Try me out by typing your first question below!</strong></p>
+  <button id="collapseBtn" onclick="toggleIntro()">Hide</button>
+</div>
 
   <div class="main">
     <div id="chat-container"></div>
@@ -241,6 +306,24 @@
         document.getElementById(responseId).innerText = "Error retrieving response.";
       }
     }
+    
+    function toggleIntro() {
+      const intro = document.getElementById("introMessage");
+      const collapseBtn = document.getElementById("collapseBtn");
+      const expandBtn = document.getElementById("expandBtn");
+
+      const isCollapsed = intro.classList.contains("collapsed");
+
+      if (isCollapsed) {
+      intro.classList.remove("collapsed");
+      expandBtn.style.display = "none";
+      collapseBtn.style.display = "inline-block"; // show it
+    } else {
+      intro.classList.add("collapsed");
+      expandBtn.style.display = "inline-block";
+      collapseBtn.style.display = "none"; // hide it
+    }
+
   </script>
 </body>
 </html>
