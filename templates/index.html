@@ -14,6 +14,7 @@
       display: flex;
       flex-direction: column;
       height: 100vh;
+      align-items: center;
     }
 
     .header {
@@ -21,6 +22,7 @@
       color: white;
       padding: 20px;
       text-align: center;
+      width: 100%;
     }
 
     .logos {
@@ -30,10 +32,19 @@
       margin-top: 10px;
     }
 
+    .main {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: 800px;
+      flex: 1;
+      padding: 0 20px;
+    }
+
     #chat-container {
       flex: 1;
-      padding: 20px;
-      overflow-y: auto;
+      padding: 20px 0;
+      overflow-y: scroll;
       display: flex;
       flex-direction: column;
     }
@@ -78,7 +89,7 @@
 
     .input-area {
       display: flex;
-      padding: 10px 20px;
+      padding: 10px 0;
       background: #fff;
       border-top: 1px solid #ccc;
       align-items: center;
@@ -92,6 +103,7 @@
       border-radius: 5px;
       border: 1px solid #ccc;
       resize: none;
+      margin-right: 10px;
     }
 
     button {
@@ -101,7 +113,6 @@
       border: none;
       border-radius: 5px;
       font-size: 1em;
-      margin-left: 10px;
       cursor: pointer;
     }
   </style>
@@ -115,11 +126,12 @@
     </div>
   </div>
 
-  <div id="chat-container"></div>
-
-  <div class="input-area">
-    <textarea id="question" placeholder="Ask a question about SAFAC policies..." onkeydown="handleKey(event)"></textarea>
-    <button onclick="askQuestion()">Submit</button>
+  <div class="main">
+    <div id="chat-container"></div>
+    <div class="input-area">
+      <textarea id="question" placeholder="Ask a question about SAFAC policies..." onkeydown="handleKey(event)"></textarea>
+      <button onclick="askQuestion()">Submit</button>
+    </div>
   </div>
 
   <script>
@@ -180,4 +192,3 @@
   </script>
 </body>
 </html>
-
